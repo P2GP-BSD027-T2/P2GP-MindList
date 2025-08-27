@@ -17,7 +17,7 @@ router.post("/boards/join", BoardController.joinBoard);
 router.post("/boards/:id/invite", BoardController.getCode);
 
 // Tasks
-router.get("/boards/:id/tasks", TaskController.Task);
+router.get("/boards/:id/tasks", TaskController.getAllTasks);
 router.post("/boards/:id/tasks", TaskController.Task);
 router.patch("/boards/:id/tasks/:taskId", TaskController.Task);
 router.delete("/boards/:id/tasks/:taskId", TaskController.Task);
