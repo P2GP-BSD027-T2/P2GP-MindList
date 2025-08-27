@@ -19,6 +19,18 @@ const errorHandler = (err, req, res, next) => {
   } else if (err.message === "BOARD_NOT_FOUND") {
     statusCode = 404;
     message = "Board not found.";
+  } else if (err.message === "EMPTY_TITLE") {
+    statusCode = 400;
+    message = "Title is required";
+  } else if (err.message === "EMPTY_DESCRIPTION") {
+    statusCode = 400;
+    message = "Description is required";
+  } else if (err.message === "EMPTY_STATUS") {
+    statusCode = 400;
+    message = "Status is required";
+  } else if (err.message === "EMPTY_ORDER") {
+    statusCode = 400;
+    message = "Order is required";
   }
 
   res.status(statusCode).json({

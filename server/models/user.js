@@ -10,7 +10,6 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       // define association here
       User.hasMany(models.Board);
-      User.hasMany(models.Task);
       User.belongsToMany(models.Board, { through: models.BoardMember });
     }
   }
