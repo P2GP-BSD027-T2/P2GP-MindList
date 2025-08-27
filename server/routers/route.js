@@ -3,7 +3,11 @@ const UserController = require("../controllers/user-controller");
 const BoardController = require("../controllers/board-controller");
 const TaskController = require("../controllers/task-controller");
 const AttachmentController = require("../controllers/attachment-controller");
-const Ai = require("../controllers/ai-controller");
+const AiController = require("../controllers/ai-controller");
+
+const multer = require("multer");
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 const router = express.Router();
 
@@ -26,19 +30,19 @@ router.put("/boards/:id/tasks/reorder", TaskController.reorderTasks);
 // Attachments
 router.post(
   "/boards/:id/tasks/:taskId/attachments",
-  AttachmentController.upload
+  upload.single("attachment"),
+  AttachmentController.uploadAttachment
 );
 router.get(
   "/boards/:id/tasks/:taskId/attachments",
-  AttachmentController.upload
+  AttachmentController.getAttachment
 );
 router.delete(
   "/boards/:id/tasks/:taskId/attachments/:attachmentId",
-  AttachmentController.upload
+  AttachmentController.deleteAttachment
 );
 
 // AI
-router.post("/boards/:id/ai/generate-tasks", Ai.generateTasks);
-router.post("/boards/:id/ai/summarize", Ai.summarizeBoard);
+router.post("/boards/:id/ai/generate-tasks", AiController.AiGenerateTasks);
 
 module.exports = router;
