@@ -95,7 +95,10 @@ const BoardListPage = () => {
         name: displayName,
         code: joinCode,
       });
-      const boardId = data.data.boardId;
+      const boardId = data.data?.BoardId;
+
+      console.log(boardId, "Cek");
+
       if (boardId) {
         toast.success("Berhasil bergabung ke board");
         nav(`/boards/${boardId}`);
