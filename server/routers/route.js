@@ -11,9 +11,9 @@ const router = express.Router();
 router.post("/register", UserController.register);
 
 // Boards
-router.post("/boards", BoardController.upload);
-router.get("/boards", BoardController.upload);
-router.post("/boards/join", BoardController.upload);
+router.post("/boards", BoardController.createBoard);
+router.get("/boards", BoardController.getAllBoards);
+router.post("/boards/join", BoardController.joinBoard);
 router.post("/boards/:id/invite", BoardController.upload);
 
 // Tasks

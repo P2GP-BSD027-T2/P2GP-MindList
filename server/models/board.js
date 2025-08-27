@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
   }
   Board.init(
     {
-      name: {
+      boardName: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
