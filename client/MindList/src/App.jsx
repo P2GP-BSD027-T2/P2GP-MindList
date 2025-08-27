@@ -1,10 +1,13 @@
 import { BrowserRouter } from "react-router";
 import Router from "./routers";
+import { BoardProvider } from "./contexts/BoardContext";
 
 function App() {
   return (
     <BrowserRouter>
-      <Router />
+      <BoardProvider>
+        <Router />
+      </BoardProvider>
     </BrowserRouter>
   );
 }
