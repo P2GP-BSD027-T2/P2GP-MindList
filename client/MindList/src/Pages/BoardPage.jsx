@@ -1,123 +1,228 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
+import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { toast } from "react-toastify";
 import BoardHeaderBanner from "../components/BoardComponents.jsx/BoardHeaderBanner.jsx";
 import Column from "../components/BoardComponents.jsx/Column.jsx";
 import KanbanCard from "../components/BoardComponents.jsx/KanbanCard.jsx";
+import { BASE_URL } from "../constant/constant";
 
-const LS_BOARDS = "dummy_boards";
-const lsKey = (boardId) => `dummy_tasks_${boardId}`;
+// ===== Constants & helpers =====
 const STATUSES = ["todo", "doing", "done"];
-
-const loadBoards = () => {
-  try {
-    return JSON.parse(localStorage.getItem(LS_BOARDS)) || [];
-  } catch {
-    return [];
-  }
-};
-const loadTasks = (boardId) => {
-  try {
-    return JSON.parse(localStorage.getItem(lsKey(boardId))) || [];
-  } catch {
-    return [];
-  }
-};
-const saveTasks = (boardId, tasks) =>
-  localStorage.setItem(lsKey(boardId), JSON.stringify(tasks));
 
 function groupTasks(tasks) {
   const group = { todo: [], doing: [], done: [] };
-  tasks.forEach((task) => group[task.status].push(task));
+  tasks.forEach((task) => group[task.status]?.push(task));
   STATUSES.forEach((status) =>
     group[status].sort((a, b) => (a.order ?? 1) - (b.order ?? 1))
   );
   return group;
 }
 
+// ===== API layer (compatible with your routes/controllers) =====
+const apiGetTasks = async (boardId) => {
+  const { data } = await axios.get(`${BASE_URL}/boards/${boardId}/tasks`);
+  return data.tasks || [];
+};
+
+const apiAddTask = async (boardId, payload) => {
+  // payload: { title, description }
+  const { data } = await axios.post(
+    `${BASE_URL}/boards/${boardId}/tasks`,
+    payload
+  );
+  return data.task;
+};
+
+const apiEditTask = async (boardId, taskId, patch) => {
+  // patch: { title?, description?, status? }
+  const { data } = await axios.patch(
+    `${BASE_URL}/boards/${boardId}/tasks/${taskId}`,
+    patch
+  );
+  // controller returns full tasks list
+  return data.tasks;
+};
+
+const apiDeleteTask = async (boardId, taskId) => {
+  const { data } = await axios.delete(
+    `${BASE_URL}/boards/${boardId}/tasks/${taskId}`
+  );
+  return data.tasks;
+};
+
+const apiReorderTasks = async (boardId, status, orderedId) => {
+  // orderedId: array of task IDs within a single status/column
+  const { data } = await axios.put(
+    `${BASE_URL}/boards/${boardId}/tasks/reorder`,
+    {
+      orderedId,
+      status,
+    }
+  );
+  // returns tasks for that status; we will refetch all for safety afterwards when needed
+  return data.tasks;
+};
+
+// ===== Page component =====
 const BoardPage = () => {
   const { id: boardId } = useParams();
   const nav = useNavigate();
-  const boards = loadBoards();
-  const board = boards.find((board) => String(board.id) === String(boardId));
-  const boardName = board?.name || "Board";
 
-  const [tasks, setTasks] = useState(() => loadTasks(boardId));
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const boardName = localStorage.getItem("board");
+
+  // add task inputs
   const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+
+  // dummy AI prompt (unchanged)
   const [prompt, setPrompt] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
 
-  useEffect(() => {}, []);
-
+  // ===== initial fetch =====
   useEffect(() => {
-    setTasks(loadTasks(boardId));
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const t = await apiGetTasks(boardId);
+        if (alive) setTasks(t);
+      } catch (e) {
+        toast.error(e?.response?.data?.message || "Gagal memuat tasks");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, [boardId]);
-  useEffect(() => {
-    saveTasks(boardId, tasks);
-  }, [boardId, tasks]);
 
+  // ===== derived helpers =====
   const nextOrder = (status) => (grouped[status].at(-1)?.order || 0) + 1;
 
-  const createTask = () => {
+  // ===== CRUD handlers =====
+  const createTask = async () => {
     const title = newTitle.trim();
-    if (!title) return;
-    const task = {
-      id: Math.random().toString(36).slice(2, 9),
-      title,
-      status: "todo",
-      order: nextOrder("todo"),
-    };
-    setTasks((prev) => [...prev, task]);
-    setNewTitle("");
-  };
-  const removeTask = (id) =>
-    setTasks((prev) => prev.filter((task) => task.id !== id));
-  const patchTask = (id, patch) =>
-    setTasks((prev) =>
-      prev.map((task) => (task.id === id ? { ...task, ...patch } : task))
-    );
-
-  const reorderColumn = (status, fromIndex, toIndex) => {
-    const ids = grouped[status].map((task) => task.id);
-    const [movedId] = ids.splice(fromIndex, 1);
-    ids.splice(toIndex, 0, movedId);
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.status !== status) return t;
-        const idx = ids.indexOf(t.id);
-        return { ...t, order: idx + 1 };
-      })
-    );
+    const description = (newDesc || "").trim();
+    if (!title) return; // backend will 400 EMPTY_TITLE
+    try {
+      const created = await apiAddTask(boardId, {
+        title,
+        description: description || "(no description)", // controller requires description
+      });
+      setTasks((prev) => [...prev, created]);
+      setNewTitle("");
+      setNewDesc("");
+      toast.success("Task dibuat");
+    } catch (e) {
+      toast.error(e?.response?.data?.message || "Gagal membuat task");
+    }
   };
 
-  const moveAcrossColumns = (taskId, fromStatus, toStatus, toIndex) => {
-    const targetIds = grouped[toStatus].map((t) => t.id);
-    targetIds.splice(toIndex, 0, taskId);
-    setTasks((prev) => {
-      let changed = prev.map((t) =>
-        t.id === taskId ? { ...t, status: toStatus } : t
-      );
-      const fromIds = grouped[fromStatus]
-        .map((t) => t.id)
-        .filter((id) => id !== taskId);
-      changed = changed.map((t) =>
-        t.status !== fromStatus ? t : { ...t, order: fromIds.indexOf(t.id) + 1 }
-      );
-      changed = changed.map((t) =>
-        t.status !== toStatus ? t : { ...t, order: targetIds.indexOf(t.id) + 1 }
-      );
-      return changed;
+  const removeTask = async (id) => {
+    const backup = tasks;
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    try {
+      const updated = await apiDeleteTask(boardId, id);
+      setTasks(updated);
+      toast.success("Task dihapus");
+    } catch (e) {
+      setTasks(backup);
+      toast.error(e?.response?.data?.message || "Gagal menghapus task");
+    }
+  };
+
+  const patchTask = async (id, patch) => {
+    const backup = tasks;
+    // optimistic
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    try {
+      const updated = await apiEditTask(boardId, id, patch);
+      setTasks(updated);
+    } catch (e) {
+      setTasks(backup);
+      toast.error(e?.response?.data?.message || "Gagal update task");
+    }
+  };
+
+  // ===== DnD handlers =====
+  const reorderColumn = async (status, fromIndex, toIndex) => {
+    const ids = grouped[status].map((t) => t.id);
+    const working = [...ids];
+    const [moved] = working.splice(fromIndex, 1);
+    working.splice(toIndex, 0, moved);
+
+    // optimistic re-order in FE
+    const backup = tasks;
+    const optimistic = tasks.map((t) => {
+      if (t.status !== status) return t;
+      const idx = working.indexOf(t.id);
+      return { ...t, order: idx + 1 };
     });
+    setTasks(optimistic);
+
+    try {
+      await apiReorderTasks(boardId, status, working);
+      // optional: trust server or refetch all to ensure consistency
+      const fresh = await apiGetTasks(boardId);
+      setTasks(fresh);
+    } catch (e) {
+      setTasks(backup);
+      toast.error(e?.response?.data?.message || "Gagal menyimpan urutan");
+    }
+  };
+
+  const moveAcrossColumns = async (taskId, fromStatus, toStatus, toIndex) => {
+    // build id lists after move
+    const toIds = grouped[toStatus].map((t) => t.id);
+    toIds.splice(toIndex, 0, taskId);
+    const fromIds = grouped[fromStatus]
+      .map((t) => t.id)
+      .filter((id) => id !== taskId);
+
+    // optimistic: change status and reorders
+    const backup = tasks;
+    const optimistic = tasks
+      .map((t) => (t.id === taskId ? { ...t, status: toStatus } : t))
+      .map((t) => {
+        if (t.status === fromStatus)
+          return { ...t, order: fromIds.indexOf(t.id) + 1 };
+        if (t.status === toStatus)
+          return { ...t, order: toIds.indexOf(t.id) + 1 };
+        return t;
+      });
+    setTasks(optimistic);
+
+    try {
+      // 1) update status task
+      await apiEditTask(boardId, taskId, { status: toStatus });
+      // 2) reorder dua kolom
+      await Promise.all([
+        apiReorderTasks(boardId, fromStatus, fromIds),
+        apiReorderTasks(boardId, toStatus, toIds),
+      ]);
+      // 3) refetch all for consistency
+      const fresh = await apiGetTasks(boardId);
+      setTasks(fresh);
+    } catch (e) {
+      setTasks(backup);
+      toast.error(e?.response?.data?.message || "Gagal memindahkan task");
+    }
   };
 
   const onDragEnd = (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
-    const from = source.droppableId,
-      to = destination.droppableId;
+    const from = source.droppableId;
+    const to = destination.droppableId;
+
     if (from === to) {
       if (source.index !== destination.index)
         reorderColumn(from, source.index, destination.index);
@@ -126,32 +231,36 @@ const BoardPage = () => {
     moveAcrossColumns(draggableId, from, to, destination.index);
   };
 
+  // ===== Dummy AI generator (optional, unchanged) =====
   const generateFromAI = () => {
     const p = prompt.trim();
     if (!p) return;
     setIsLoadingAI(true);
-    setTimeout(() => {
-      const ideas = [
-        { title: `Riset: ${p}`, status: "todo" },
-        { title: `Rencana ${p}`, status: "todo" },
-        { title: `Kerjakan inti: ${p}`, status: "doing" },
-        { title: `Review hasil ${p}`, status: "done" },
-      ];
-      let last = Math.max(0, ...tasks.map((t) => t.order || 0));
-      const created = ideas.map((it) => ({
-        id: Math.random().toString(36).slice(2, 9),
-        title: it.title,
-        status: it.status,
-        order: ++last,
-      }));
-      setTasks((prev) => [...prev, ...created]);
-      setPrompt("");
-      setIsLoadingAI(false);
-      toast.success("AI dummy: tasks ditambahkan!");
-    }, 900);
+    setTimeout(async () => {
+      try {
+        const ideas = [
+          { title: `Riset: ${p}`, status: "todo" },
+          { title: `Rencana ${p}`, status: "todo" },
+          { title: `Kerjakan inti: ${p}`, status: "doing" },
+          { title: `Review hasil ${p}`, status: "done" },
+        ];
+        for (const it of ideas) {
+          await apiAddTask(boardId, { title: it.title, description: "(AI)" });
+          // status default todo sesuai controller-mu; pindah kolom manual jika perlu
+        }
+        const fresh = await apiGetTasks(boardId);
+        setTasks(fresh);
+        toast.success("AI dummy: tasks ditambahkan!");
+      } catch (e) {
+        toast.error(e?.response?.data?.message || "Gagal generate tasks AI");
+      } finally {
+        setPrompt("");
+        setIsLoadingAI(false);
+      }
+    }, 800);
   };
 
-  // Monochrome navy shades for columns
+  // ===== UI =====
   const COLS = [
     { key: "todo", title: "To-do", list: grouped.todo, color: "bg-indigo-600" },
     {
@@ -272,12 +381,19 @@ const BoardPage = () => {
           <BoardHeaderBanner title={boardName} />
 
           {/* Add Task */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur shadow-sm p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur shadow-sm p-3 grid grid-cols-1 sm:grid-cols-[1fr_220px_auto] gap-2 items-stretch">
             <input
               className="w-full rounded-xl border border-white/10 bg-[#0f1c40] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/20"
-              placeholder="Tambahkan tugas baru..."
+              placeholder="Judul tugas..."
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createTask()}
+            />
+            <input
+              className="w-full rounded-xl border border-white/10 bg-[#0f1c40] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/20"
+              placeholder="Deskripsi singkat (opsional)"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createTask()}
             />
             <button
@@ -309,37 +425,41 @@ const BoardPage = () => {
                             : ""
                         }`}
                       >
-                        {col.list.map((t, idx) => (
-                          <Draggable
-                            key={String(t.id)}
-                            draggableId={String(t.id)}
-                            index={idx}
-                          >
-                            {(prov, snap) => (
-                              <div
-                                ref={prov.innerRef}
-                                {...prov.draggableProps}
-                                {...prov.dragHandleProps}
-                                className={`transform transition duration-200 ${
-                                  snap.isDragging
-                                    ? "rotate-[.5deg] scale-[1.02]"
-                                    : "hover:scale-[1.01]"
-                                }`}
-                              >
-                                <KanbanCard
-                                  task={t}
-                                  onDelete={removeTask}
-                                  onChangeStatus={(id, s) =>
-                                    patchTask(id, { status: s })
-                                  }
-                                  onEditTitle={(id, newTitle) =>
-                                    patchTask(id, { title: newTitle })
-                                  }
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
+                        {loading && col.list.length === 0 ? (
+                          <div className="h-24 animate-pulse rounded-xl bg-white/10" />
+                        ) : (
+                          col.list.map((t, idx) => (
+                            <Draggable
+                              key={String(t.id)}
+                              draggableId={String(t.id)}
+                              index={idx}
+                            >
+                              {(prov, snap) => (
+                                <div
+                                  ref={prov.innerRef}
+                                  {...prov.draggableProps}
+                                  {...prov.dragHandleProps}
+                                  className={`transform transition duration-200 ${
+                                    snap.isDragging
+                                      ? "rotate-[.5deg] scale-[1.02]"
+                                      : "hover:scale-[1.01]"
+                                  }`}
+                                >
+                                  <KanbanCard
+                                    task={t}
+                                    onDelete={removeTask}
+                                    onChangeStatus={(id, s) =>
+                                      patchTask(id, { status: s })
+                                    }
+                                    onEditTitle={(id, title) =>
+                                      patchTask(id, { title })
+                                    }
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))
+                        )}
                         {provided.placeholder}
                       </div>
                     )}
