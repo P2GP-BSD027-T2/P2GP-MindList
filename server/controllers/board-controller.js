@@ -1,4 +1,4 @@
-class Board {
+class BoardController {
   static async upload(req, res, next) {
     try {
       res.status(200).json({ message: "File uploaded successfully" });
@@ -8,4 +8,4 @@ class Board {
   }
 }
 
-module.exports = Board;
+module.exports = BoardController;

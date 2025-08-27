@@ -9,9 +9,15 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      Board.hasMany(models.Tasks);
-      Board.hasMany(models.Attachments);
-      Board.belongsToMany(models.Users, { through: models.BoardMember });
+      Board.hasMany(models.Task, { foreignKey: "BoardId" });
+      Board.hasMany(models.Attachment, { foreignKey: "BoardId" });
+      Board.belongsTo(models.User, { foreignKey: "UserId" }); // owner
+      Board.belongsToMany(models.User, {
+        through: models.BoardMember,
+        foreignKey: "BoardId",
+        otherKey: "UserId",
+        as: "Members",
+      });
     }
   }
   Board.init(
