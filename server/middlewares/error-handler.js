@@ -18,7 +18,7 @@ const errorHandler = (err, req, res, next) => {
     message = "User not found";
   } else if (err.message === "BOARD_NOT_FOUND") {
     statusCode = 404;
-    message = "Board not found. Invalid code.";
+    message = "Board not found.";
   }
 
   res.status(statusCode).json({

@@ -58,18 +58,16 @@ class BoardController {
     }
   }
 
-  static async upload(req, res, next) {
+  static async getCode(req, res, next) {
     try {
       const { id } = req.params;
-      res.status(200).json({ message: "File uploaded successfully" });
-    } catch (err) {
-      next(err);
-    }
-  }
 
-  static async upload(req, res, next) {
-    try {
-      res.status(200).json({ message: "File uploaded successfully" });
+      const board = await Board.findByPk(+id);
+      if (!board) throw new Error("BOARD_NOT_FOUND");
+
+      const code = board.code;
+
+      res.status(200).json({ code: code });
     } catch (err) {
       next(err);
     }
