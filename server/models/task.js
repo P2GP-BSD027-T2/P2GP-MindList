@@ -9,7 +9,6 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       Task.belongsTo(models.Board, { foreignKey: "BoardId" });
-      Task.belongsTo(models.User, { foreignKey: "UserId", as: "AssignedUser" });
       Task.hasMany(models.Attachment, { foreignKey: "TaskId" });
     }
   }
@@ -19,8 +18,7 @@ module.exports = (sequelize, DataTypes) => {
       title: DataTypes.STRING,
       description: DataTypes.TEXT,
       status: { type: DataTypes.STRING, defaultValue: "todo" },
-      order: { type: DataTypes.INTEGER, defaultValue: 0 },
-      UserId: DataTypes.INTEGER,
+      order: { type: DataTypes.INTEGER },
     },
     {
       sequelize,
