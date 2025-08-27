@@ -31,6 +31,12 @@ const errorHandler = (err, req, res, next) => {
   } else if (err.message === "EMPTY_ORDER") {
     statusCode = 400;
     message = "Order is required";
+  } else if (err.message === "EMPTY_REQ_FILE") {
+    statusCode = 400;
+    message = "File is required";
+  } else if (err.message === "ATTACHMENT_NOT_FOUND") {
+    statusCode = 404;
+    message = "Attachment not found";
   }
 
   res.status(statusCode).json({
