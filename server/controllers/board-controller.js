@@ -1,5 +1,5 @@
 const { generateCode } = require("../helpers/code-generator");
-const { User, Board } = require("../models/index");
+const { User, Board, BoardMember } = require("../models/index");
 class BoardController {
   static async createBoard(req, res, next) {
     try {
@@ -13,6 +13,10 @@ class BoardController {
       const code = generateCode();
 
       const newBoard = await Board.create({ boardName, UserId, code });
+      const newBoardMember = await BoardMember.create({
+        BoardId: newBoard.id,
+        UserId,
+      });
 
       res
         .status(201)
@@ -21,6 +25,48 @@ class BoardController {
       next(err);
     }
   }
+
+  static async getAllBoards(req, res, next) {
+    try {
+      const boards = await Board.findAll();
+      res
+        .status(200)
+        .json({ message: "Boards retrieved successfully", boards });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async joinBoard(req, res, next) {
+    try {
+      const { code, name } = req.body;
+
+      const board = await Board.findOne({ where: { code } });
+      if (!board) throw new Error("BOARD_NOT_FOUND");
+
+      const user = await User.findOne({ where: { name } });
+      if (!user) throw new Error("USER_NOT_FOUND");
+
+      await BoardMember.create({
+        BoardId: board.id,
+        UserId: user.id,
+      });
+
+      res.status(200).json({ message: "User added to board" });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async upload(req, res, next) {
+    try {
+      const { id } = req.params;
+      res.status(200).json({ message: "File uploaded successfully" });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async upload(req, res, next) {
     try {
       res.status(200).json({ message: "File uploaded successfully" });
