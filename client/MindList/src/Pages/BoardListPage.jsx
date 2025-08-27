@@ -51,7 +51,6 @@ const BoardListPage = () => {
     if (!newName.trim()) return toast.warn("Nama board tidak boleh kosong");
 
     try {
-      // 1) Register/ensure user
       const { data: userData } = await axios.post(`${BASE_URL}/register`, {
         name: displayName.trim(),
       });
@@ -62,7 +61,8 @@ const BoardListPage = () => {
       if (userId) localStorage.setItem("id", String(userId));
       if (userName) localStorage.setItem("name", String(userName));
 
-      // 2) Create board
+      localStorage.setItem("board", displayName);
+
       const { data: createBoards } = await axios.post(`${BASE_URL}/boards`, {
         name: userName || displayName.trim(),
         boardName: newName.trim(),
@@ -97,7 +97,9 @@ const BoardListPage = () => {
       });
       const boardId = data.data?.BoardId;
 
-      console.log(boardId, "Cek");
+      localStorage.setItem("id", data.data?.id);
+      localStorage.setItem("name", data.data?.name);
+      localStorage.setItem("board", displayName);
 
       if (boardId) {
         toast.success("Berhasil bergabung ke board");
@@ -114,13 +116,18 @@ const BoardListPage = () => {
   const handleOpenBoard = async (b) => {
     try {
       const name = localStorage.getItem("name") || "Guest";
-      // Kalau API-mu punya flag membership, pakai b.isMember (atau apa pun yang server kirim)
       if (!b.isMember) {
-        // coba join dulu
-        await axios.post(`${BASE_URL}/boards/join`, {
+        const { data } = await axios.post(`${BASE_URL}/boards/join`, {
           name,
-          code: b.code, // asumsi: b.code tersedia dari list
+          code: b.code,
         });
+
+        console.log(b.boardName);
+
+        localStorage.setItem("id", data.data?.id);
+        localStorage.setItem("name", data.data?.name);
+        localStorage.setItem("board", b.boardName);
+
         toast.success("Bergabung ke board berhasil");
       }
       nav(`/boards/${b.id}`);
