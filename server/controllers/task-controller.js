@@ -1,4 +1,4 @@
-class Task {
+class TaskController {
   static async Task(req, res, next) {
     try {
       res.status(200).json({ message: "File uploaded successfully" });
@@ -8,4 +8,4 @@ class Task {
   }
 }
 
-module.exports = Task;
+module.exports = TaskController;

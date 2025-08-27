@@ -1,33 +1,40 @@
 const express = require("express");
-const Board = require("../controllers/board-controller");
-const Task = require("../controllers/task-controller");
-const Attachment = require("../controllers/attachment-controller");
-const User = require("../controllers/user-controller");
+const UserController = require("../controllers/user-controller");
+const BoardController = require("../controllers/board-controller");
+const TaskController = require("../controllers/task-controller");
+const AttachmentController = require("../controllers/attachment-controller");
 const Ai = require("../controllers/ai-controller");
+
 const router = express.Router();
 
 // Users
-router.post("/register", User.register);
+router.post("/register", UserController.register);
 
 // Boards
-router.post("/boards", Board.upload);
-router.get("/boards", Board.upload);
-router.post("/boards/join", Board.upload);
-router.post("/boards/:id/invite", Board.upload);
+router.post("/boards", BoardController.upload);
+router.get("/boards", BoardController.upload);
+router.post("/boards/join", BoardController.upload);
+router.post("/boards/:id/invite", BoardController.upload);
 
 // Tasks
-router.get("/boards/:id/tasks", Task.Task);
-router.post("/boards/:id/tasks", Task.Task);
-router.patch("/boards/:id/tasks/:taskId", Task.Task);
-router.delete("/boards/:id/tasks/:taskId", Task.Task);
-router.put("/boards/:id/tasks/reorder", Task.Task);
+router.get("/boards/:id/tasks", TaskController.Task);
+router.post("/boards/:id/tasks", TaskController.Task);
+router.patch("/boards/:id/tasks/:taskId", TaskController.Task);
+router.delete("/boards/:id/tasks/:taskId", TaskController.Task);
+router.put("/boards/:id/tasks/reorder", TaskController.Task);
 
 // Attachments
-router.post("/boards/:id/tasks/:taskId/attachments", Attachment.upload);
-router.get("/boards/:id/tasks/:taskId/attachments", Attachment.upload);
+router.post(
+  "/boards/:id/tasks/:taskId/attachments",
+  AttachmentController.upload
+);
+router.get(
+  "/boards/:id/tasks/:taskId/attachments",
+  AttachmentController.upload
+);
 router.delete(
   "/boards/:id/tasks/:taskId/attachments/:attachmentId",
-  Attachment.upload
+  AttachmentController.upload
 );
 
 // AI
