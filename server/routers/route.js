@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/register", UserController.register);
 
 // Boards
-router.post("/boards", BoardController.upload);
+router.post("/boards", BoardController.createBoard);
 router.get("/boards", BoardController.upload);
 router.post("/boards/join", BoardController.upload);
 router.post("/boards/:id/invite", BoardController.upload);
