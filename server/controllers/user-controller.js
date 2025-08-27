@@ -1,13 +1,16 @@
-class User {
+const { User } = require("../models/index");
+class UserController {
   static async register(req, res, next) {
     try {
       const { name } = req.body;
 
-      res.status(200).json({ message: "File uploaded successfully" });
+      const user = await User.create({ name });
+
+      res.status(201).json({ message: "User registered successfully", user });
     } catch (err) {
       next(err);
     }
   }
 }
 
-module.exports = User;
+module.exports = UserController;

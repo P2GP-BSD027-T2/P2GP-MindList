@@ -9,9 +9,9 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      User.hasMany(models.Boards);
-      User.hasMany(models.Tasks);
-      User.belongsToMany(models.Boards, { through: models.BoardMember });
+      User.hasMany(models.Board);
+      User.hasMany(models.Task);
+      User.belongsToMany(models.Board, { through: models.BoardMember });
     }
   }
   User.init(
