@@ -14,7 +14,7 @@ router.post("/register", UserController.register);
 router.post("/boards", BoardController.createBoard);
 router.get("/boards", BoardController.getAllBoards);
 router.post("/boards/join", BoardController.joinBoard);
-router.post("/boards/:id/invite", BoardController.upload);
+router.post("/boards/:id/invite", BoardController.getCode);
 
 // Tasks
 router.get("/boards/:id/tasks", TaskController.Task);
