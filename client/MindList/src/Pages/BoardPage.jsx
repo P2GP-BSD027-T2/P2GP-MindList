@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { toast } from "react-toastify";
+import { io } from "socket.io-client";
 import BoardHeaderBanner from "../components/BoardComponents.jsx/BoardHeaderBanner.jsx";
 import Column from "../components/BoardComponents.jsx/Column.jsx";
 import KanbanCard from "../components/BoardComponents.jsx/KanbanCard.jsx";
 import { BASE_URL } from "../constant/constant";
 
-// ===== Constants & helpers =====
 const STATUSES = ["todo", "doing", "done"];
 
 function groupTasks(tasks) {
@@ -20,52 +20,39 @@ function groupTasks(tasks) {
   return group;
 }
 
-// ===== API layer (compatible with your routes/controllers) =====
+// ===== API wrappers =====
 const apiGetTasks = async (boardId) => {
   const { data } = await axios.get(`${BASE_URL}/boards/${boardId}/tasks`);
   return data.tasks || [];
 };
-
 const apiAddTask = async (boardId, payload) => {
-  // payload: { title, description }
   const { data } = await axios.post(
     `${BASE_URL}/boards/${boardId}/tasks`,
     payload
   );
   return data.task;
 };
-
 const apiEditTask = async (boardId, taskId, patch) => {
-  // patch: { title?, description?, status? }
   const { data } = await axios.patch(
     `${BASE_URL}/boards/${boardId}/tasks/${taskId}`,
     patch
   );
-  // controller returns full tasks list
   return data.tasks;
 };
-
 const apiDeleteTask = async (boardId, taskId) => {
   const { data } = await axios.delete(
     `${BASE_URL}/boards/${boardId}/tasks/${taskId}`
   );
   return data.tasks;
 };
-
 const apiReorderTasks = async (boardId, status, orderedId) => {
-  // orderedId: array of task IDs within a single status/column
   const { data } = await axios.put(
     `${BASE_URL}/boards/${boardId}/tasks/reorder`,
-    {
-      orderedId,
-      status,
-    }
+    { orderedId, status }
   );
-  // returns tasks for that status; we will refetch all for safety afterwards when needed
   return data.tasks;
 };
 
-// ===== Page component =====
 const BoardPage = () => {
   const { id: boardId } = useParams();
   const nav = useNavigate();
@@ -73,19 +60,70 @@ const BoardPage = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const boardName = localStorage.getItem("board");
+  const boardName = localStorage.getItem("board") || "Board";
 
-  // add task inputs
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
-
-  // dummy AI prompt (unchanged)
   const [prompt, setPrompt] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
 
-  // ===== initial fetch =====
+  // ===== Socket (single instance) =====
+  const socketRef = useRef(null);
+  useEffect(() => {
+    if (!socketRef.current) {
+      socketRef.current = io(BASE_URL, {
+        withCredentials: true,
+        transports: ["websocket"],
+      });
+    }
+    const socket = socketRef.current;
+
+    // join board room
+    if (boardId) socket.emit("joinBoard", boardId);
+
+    // listeners
+    const onCreated = ({ task }) => {
+      if (!task) return;
+      setTasks((prev) =>
+        prev.some((t) => String(t.id) === String(task.id))
+          ? prev
+          : [...prev, task]
+      );
+    };
+    const onUpdated = ({ tasks: serverTasks }) =>
+      Array.isArray(serverTasks) && setTasks(serverTasks);
+    const onDeleted = ({ tasks: serverTasks }) =>
+      Array.isArray(serverTasks) && setTasks(serverTasks);
+    const onReordered = ({ tasks: serverTasks }) =>
+      Array.isArray(serverTasks) && setTasks(serverTasks);
+
+    socket.on("task:created", onCreated);
+    socket.on("task:updated", onUpdated);
+    socket.on("task:deleted", onDeleted);
+    socket.on("task:reordered", onReordered);
+
+    // safety re-sync on (re)connect
+    const onConnect = async () => {
+      try {
+        const fresh = await apiGetTasks(boardId);
+        setTasks(fresh);
+      } catch {}
+    };
+    socket.on("connect", onConnect);
+
+    return () => {
+      socket.emit("leaveBoard", boardId);
+      socket.off("task:created", onCreated);
+      socket.off("task:updated", onUpdated);
+      socket.off("task:deleted", onDeleted);
+      socket.off("task:reordered", onReordered);
+      socket.off("connect", onConnect);
+    };
+  }, [boardId]);
+
+  // ===== Initial fetch =====
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -104,19 +142,17 @@ const BoardPage = () => {
     };
   }, [boardId]);
 
-  // ===== derived helpers =====
-  const nextOrder = (status) => (grouped[status].at(-1)?.order || 0) + 1;
-
-  // ===== CRUD handlers =====
+  // ===== CRUD (optimistic; socket broadcast akan menyamakan state semua klien) =====
   const createTask = async () => {
     const title = newTitle.trim();
     const description = (newDesc || "").trim();
-    if (!title) return; // backend will 400 EMPTY_TITLE
+    if (!title) return;
     try {
       const created = await apiAddTask(boardId, {
         title,
-        description: description || "(no description)", // controller requires description
+        description: description || "(no description)",
       });
+      // Optimistic add; listener `task:created` akan mengabaikan duplikat
       setTasks((prev) => [...prev, created]);
       setNewTitle("");
       setNewDesc("");
@@ -141,7 +177,6 @@ const BoardPage = () => {
 
   const patchTask = async (id, patch) => {
     const backup = tasks;
-    // optimistic
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     try {
       const updated = await apiEditTask(boardId, id, patch);
@@ -152,14 +187,15 @@ const BoardPage = () => {
     }
   };
 
-  // ===== DnD handlers =====
   const reorderColumn = async (status, fromIndex, toIndex) => {
-    const ids = grouped[status].map((t) => t.id);
+    const col = grouped[status];
+    if (!col) return;
+
+    const ids = col.map((t) => t.id);
     const working = [...ids];
     const [moved] = working.splice(fromIndex, 1);
     working.splice(toIndex, 0, moved);
 
-    // optimistic re-order in FE
     const backup = tasks;
     const optimistic = tasks.map((t) => {
       if (t.status !== status) return t;
@@ -170,7 +206,7 @@ const BoardPage = () => {
 
     try {
       await apiReorderTasks(boardId, status, working);
-      // optional: trust server or refetch all to ensure consistency
+      // socket event `task:reordered` akan datang; tetap refetch kecil untuk jaga konsistensi
       const fresh = await apiGetTasks(boardId);
       setTasks(fresh);
     } catch (e) {
@@ -180,14 +216,14 @@ const BoardPage = () => {
   };
 
   const moveAcrossColumns = async (taskId, fromStatus, toStatus, toIndex) => {
-    // build id lists after move
+    if (!grouped[fromStatus] || !grouped[toStatus]) return;
+
     const toIds = grouped[toStatus].map((t) => t.id);
     toIds.splice(toIndex, 0, taskId);
     const fromIds = grouped[fromStatus]
       .map((t) => t.id)
       .filter((id) => id !== taskId);
 
-    // optimistic: change status and reorders
     const backup = tasks;
     const optimistic = tasks
       .map((t) => (t.id === taskId ? { ...t, status: toStatus } : t))
@@ -201,14 +237,11 @@ const BoardPage = () => {
     setTasks(optimistic);
 
     try {
-      // 1) update status task
       await apiEditTask(boardId, taskId, { status: toStatus });
-      // 2) reorder dua kolom
       await Promise.all([
         apiReorderTasks(boardId, fromStatus, fromIds),
         apiReorderTasks(boardId, toStatus, toIds),
       ]);
-      // 3) refetch all for consistency
       const fresh = await apiGetTasks(boardId);
       setTasks(fresh);
     } catch (e) {
@@ -231,7 +264,6 @@ const BoardPage = () => {
     moveAcrossColumns(draggableId, from, to, destination.index);
   };
 
-  // ===== Dummy AI generator (optional, unchanged) =====
   const generateFromAI = () => {
     const p = prompt.trim();
     if (!p) return;
@@ -239,14 +271,13 @@ const BoardPage = () => {
     setTimeout(async () => {
       try {
         const ideas = [
-          { title: `Riset: ${p}`, status: "todo" },
-          { title: `Rencana ${p}`, status: "todo" },
-          { title: `Kerjakan inti: ${p}`, status: "doing" },
-          { title: `Review hasil ${p}`, status: "done" },
+          { title: `Riset: ${p}` },
+          { title: `Rencana ${p}` },
+          { title: `Kerjakan inti: ${p}` },
+          { title: `Review hasil ${p}` },
         ];
         for (const it of ideas) {
           await apiAddTask(boardId, { title: it.title, description: "(AI)" });
-          // status default todo sesuai controller-mu; pindah kolom manual jika perlu
         }
         const fresh = await apiGetTasks(boardId);
         setTasks(fresh);
@@ -260,7 +291,6 @@ const BoardPage = () => {
     }, 800);
   };
 
-  // ===== UI =====
   const COLS = [
     { key: "todo", title: "To-do", list: grouped.todo, color: "bg-indigo-600" },
     {
@@ -289,7 +319,7 @@ const BoardPage = () => {
               </h1>
             </div>
 
-            {/* AI Prompt (collapses on small screens) */}
+            {/* AI Prompt */}
             <div className="hidden sm:flex items-center gap-2 w-[420px] max-w-full">
               <input
                 className="w-full rounded-xl border border-white/10 bg-[#0f1c40] px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/20"
@@ -303,74 +333,17 @@ const BoardPage = () => {
                 disabled={isLoadingAI}
                 className="inline-flex select-none items-center justify-center rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition hover:bg-indigo-500 active:scale-[.98] disabled:opacity-60"
               >
-                {isLoadingAI ? (
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                ) : (
-                  "Generate"
-                )}
+                {isLoadingAI ? <span>...</span> : "Generate"}
               </button>
               <button
-                onClick={() => {
-                  localStorage.clear();
-                  nav("/");
-                }}
+                onClick={() => nav("/")}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#121e44]/80 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-[#142354] active:scale-[.98]"
                 title="Kembali ke Boards"
               >
-                <span className="hidden sm:inline fa-solid fa-arrow-right-from-bracket"></span>
                 <span className="sm:hidden">←</span>
+                <span className="hidden sm:inline">Exit</span>
               </button>
             </div>
-
-            {/* Mobile generate button */}
-            <button
-              onClick={generateFromAI}
-              disabled={isLoadingAI}
-              className="sm:hidden inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md active:scale-[.98] disabled:opacity-60"
-              title="Generate AI (dummy)"
-            >
-              {isLoadingAI ? (
-                <svg
-                  className="animate-spin h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-              ) : (
-                <span>AI</span>
-              )}
-            </button>
           </div>
         </div>
       </nav>
