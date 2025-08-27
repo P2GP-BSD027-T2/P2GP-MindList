@@ -19,9 +19,6 @@ const errorHandler = (err, req, res, next) => {
   } else if (err.message === "BOARD_NOT_FOUND") {
     statusCode = 404;
     message = "Board not found.";
-  } else if (err.message === "TASKS_NOT_FOUND") {
-    statusCode = 404;
-    message = "Tasks not found.";
   }
 
   res.status(statusCode).json({
