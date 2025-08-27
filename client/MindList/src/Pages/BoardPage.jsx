@@ -52,6 +52,13 @@ const apiReorderTasks = async (boardId, status, orderedId) => {
   );
   return data.tasks;
 };
+const apiAiGenerate = async (boardId, title) => {
+  const { data } = await axios.post(
+    `${BASE_URL}/boards/${boardId}/ai/generate-tasks`,
+    { title }
+  );
+  return data;
+};
 
 const BoardPage = () => {
   const { id: boardId } = useParams();
@@ -264,31 +271,37 @@ const BoardPage = () => {
     moveAcrossColumns(draggableId, from, to, destination.index);
   };
 
-  const generateFromAI = () => {
+  const generateFromAI = async () => {
     const p = prompt.trim();
     if (!p) return;
     setIsLoadingAI(true);
-    setTimeout(async () => {
-      try {
-        const ideas = [
-          { title: `Riset: ${p}` },
-          { title: `Rencana ${p}` },
-          { title: `Kerjakan inti: ${p}` },
-          { title: `Review hasil ${p}` },
-        ];
-        for (const it of ideas) {
-          await apiAddTask(boardId, { title: it.title, description: "(AI)" });
-        }
-        const fresh = await apiGetTasks(boardId);
-        setTasks(fresh);
-        toast.success("AI dummy: tasks ditambahkan!");
-      } catch (e) {
-        toast.error(e?.response?.data?.message || "Gagal generate tasks AI");
-      } finally {
-        setPrompt("");
-        setIsLoadingAI(false);
+    try {
+      const { tasks, descriptions } = await apiAiGenerate(boardId, prompt);
+
+      for (let i = 0; i < tasks.length; i++) {
+        const title = String(tasks[i] || "").trim();
+        if (!title) continue;
+
+        const description = String(descriptions[i] || descriptions[0] || "(AI)").trim();
+        await apiAddTask(boardId, {
+          title,
+          description: description || "(AI)",
+          // opsional: kasih default status + order kalo backendmu dukung
+          // status: "todo",
+          // order: i + 1,
+        });
       }
-    }, 800);
+
+      const fresh = await apiGetTasks(boardId);
+      setTasks(fresh);
+      setPrompt("");
+      toast.success("Tasks dari AI sudah ditambahkan 🎯");
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message);
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   const COLS = [
@@ -323,7 +336,7 @@ const BoardPage = () => {
             <div className="hidden sm:flex items-center gap-2 w-[420px] max-w-full">
               <input
                 className="w-full rounded-xl border border-white/10 bg-[#0f1c40] px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/20"
-                placeholder="AI prompt (dummy)"
+                placeholder="AI prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && generateFromAI()}
