@@ -52,7 +52,13 @@ class BoardController {
         UserId: user.id,
       });
 
-      res.status(200).json({ message: "User added to board" });
+      const data = {
+        id: user.id,
+        name: user.name,
+        boardId: board.id,
+      };
+
+      res.status(200).json({ message: "User added to board", data });
     } catch (err) {
       next(err);
     }
