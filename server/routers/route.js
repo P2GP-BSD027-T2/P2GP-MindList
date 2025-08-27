@@ -3,6 +3,7 @@ const Board = require("../controllers/board-controller");
 const Task = require("../controllers/task-controller");
 const Attachment = require("../controllers/attachment-controller");
 const User = require("../controllers/user-controller");
+const Ai = require("../controllers/ai-controller");
 const router = express.Router();
 
 // Users
@@ -28,5 +29,9 @@ router.delete(
   "/boards/:id/tasks/:taskId/attachments/:attachmentId",
   Attachment.upload
 );
+
+// AI
+router.post("/boards/:id/ai/generate-tasks", Ai.generateTasks);
+router.post("/boards/:id/ai/summarize", Ai.summarizeBoard);
 
 module.exports = router;
