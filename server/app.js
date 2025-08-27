@@ -4,6 +4,9 @@ const { Server } = require("socket.io");
 
 const app = express();
 const httpServer = createServer(app);
+const cors = require("cors");
+const errorHandler = require("./middlewares/error-handler");
+const router = require("./routers/route");
 
 const PORT = 3000;
 const io = new Server(httpServer, {
@@ -11,6 +14,10 @@ const io = new Server(httpServer, {
     origin: "*",
   },
 });
+
+app.use(cors());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -53,5 +60,9 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
   });
 });
+
+app.use(router);
+
+app.use(errorHandler);
 
 httpServer.listen(PORT, () => console.log("Socket server on", PORT));
