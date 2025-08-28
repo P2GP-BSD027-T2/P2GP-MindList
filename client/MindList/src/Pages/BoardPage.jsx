@@ -20,6 +20,7 @@ function groupTasks(tasks) {
   return group;
 }
 
+
 const BoardPage = () => {
   const { id: boardId } = useParams();
   const nav = useNavigate();
@@ -229,31 +230,23 @@ const BoardPage = () => {
     moveAcrossColumns(draggableId, from, to, destination.index);
   };
 
-  const generateFromAI = () => {
+  const generateFromAI = async () => {
     const p = prompt.trim();
     if (!p) return;
     setIsLoadingAI(true);
-    setTimeout(async () => {
-      try {
-        const ideas = [
-          { title: `Riset: ${p}` },
-          { title: `Rencana ${p}` },
-          { title: `Kerjakan inti: ${p}` },
-          { title: `Review hasil ${p}` },
-        ];
-        for (const it of ideas) {
-          await apiAddTask({ title: it.title, description: "(AI)" });
-        }
-        const fresh = await apiGetTasks(boardId);
-        setTasks(fresh);
-        toast.success("AI dummy: tasks ditambahkan!");
-      } catch (e) {
-        toast.error(e?.response?.data?.message || "Gagal generate tasks AI");
-      } finally {
-        setPrompt("");
-        setIsLoadingAI(false);
+
       }
-    }, 800);
+
+      const fresh = await apiGetTasks(boardId);
+      setTasks(fresh);
+      setPrompt("");
+      toast.success("Tasks dari AI sudah ditambahkan 🎯");
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message);
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   const COLS = [
@@ -288,7 +281,7 @@ const BoardPage = () => {
             <div className="hidden sm:flex items-center gap-2 w-[420px] max-w-full">
               <input
                 className="w-full rounded-xl border border-white/10 bg-[#0f1c40] px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/20"
-                placeholder="AI prompt (dummy)"
+                placeholder="AI prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && generateFromAI()}
