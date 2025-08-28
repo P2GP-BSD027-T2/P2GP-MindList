@@ -18,9 +18,9 @@ export default function KanbanCard({
   }, [task.title]);
 
   const commitTitle = () => {
-    const title = title.trim();
-    if (!title || title === task.title) return setEditing(false);
-    if (typeof onEditTitle === "function") onEditTitle(task.id, title);
+    const newtitle = title.trim();
+    if (!newtitle || newtitle === task.title) return setEditing(false);
+    if (typeof onEditTitle === "function") onEditTitle(task.id, newtitle);
     setEditing(false);
   };
 
@@ -58,9 +58,9 @@ export default function KanbanCard({
           className="w-full text-left text-[15px] font-medium leading-snug mb-2 text-slate-100 hover:text-white"
           title="Klik untuk edit judul"
           onDoubleClick={() => setEditing(true)}
-          onKeyDown={(event) =>
-            event.key === "Enter" ? setEditing(true) : null
-          }
+          // onKeyDown={(event) =>
+          //   event.key === "Enter" ? setEditing(true) : null
+          // }
         >
           {task.title}
         </button>

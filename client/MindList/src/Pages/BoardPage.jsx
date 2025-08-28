@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import { io } from "socket.io-client";
 import BoardHeaderBanner from "../components/BoardComponents.jsx/BoardHeaderBanner.jsx";
 import Column from "../components/BoardComponents.jsx/Column.jsx";
@@ -282,7 +282,9 @@ const BoardPage = () => {
         const title = String(tasks[i] || "").trim();
         if (!title) continue;
 
-        const description = String(descriptions[i] || descriptions[0] || "(AI)").trim();
+        const description = String(
+          descriptions[i] || descriptions[0] || "(AI)"
+        ).trim();
         await apiAddTask(boardId, {
           title,
           description: description || "(AI)",
@@ -349,7 +351,10 @@ const BoardPage = () => {
                 {isLoadingAI ? <span>...</span> : "Generate"}
               </button>
               <button
-                onClick={() => nav("/")}
+                onClick={() => {
+                  localStorage.clear();
+                  nav("/");
+                }}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#121e44]/80 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-[#142354] active:scale-[.98]"
                 title="Kembali ke Boards"
               >
@@ -456,6 +461,18 @@ const BoardPage = () => {
           </div>
         </div>
       </div>
+      <ToastContainer
+        position="bottom-left"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick={false}
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   );
 };
