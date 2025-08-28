@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
+import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import { io } from "socket.io-client";
 import BoardHeaderBanner from "../components/BoardComponents.jsx/BoardHeaderBanner.jsx";
 import Column from "../components/BoardComponents.jsx/Column.jsx";
 import KanbanCard from "../components/BoardComponents.jsx/KanbanCard.jsx";
 import { BASE_URL } from "../constant/constant";
-import { useBoard } from "../contexts/BoardContext";
 
 const STATUSES = ["todo", "doing", "done"];
 
@@ -20,10 +20,52 @@ function groupTasks(tasks) {
   return group;
 }
 
+// ===== API wrappers =====
+const apiGetTasks = async (boardId) => {
+  const { data } = await axios.get(`${BASE_URL}/boards/${boardId}/tasks`);
+  return data.tasks || [];
+};
+const apiAddTask = async (boardId, payload) => {
+  const { data } = await axios.post(
+    `${BASE_URL}/boards/${boardId}/tasks`,
+    payload
+  );
+  return data.task;
+};
+const apiEditTask = async (boardId, taskId, patch) => {
+  const { data } = await axios.patch(
+    `${BASE_URL}/boards/${boardId}/tasks/${taskId}`,
+    patch
+  );
+  return data.tasks;
+};
+const apiDeleteTask = async (boardId, taskId) => {
+  const { data } = await axios.delete(
+    `${BASE_URL}/boards/${boardId}/tasks/${taskId}`
+  );
+  return data.tasks;
+};
+const apiReorderTasks = async (boardId, status, orderedId) => {
+  const { data } = await axios.put(
+    `${BASE_URL}/boards/${boardId}/tasks/reorder`,
+    { orderedId, status }
+  );
+  return data.tasks;
+};
+const apiAiGenerate = async (boardId, title) => {
+  const { data } = await axios.post(
+    `${BASE_URL}/boards/${boardId}/ai/generate-tasks`,
+    { title }
+  );
+  return data;
+};
 
 const BoardPage = () => {
   const { id: boardId } = useParams();
   const nav = useNavigate();
+
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const boardName = localStorage.getItem("board") || "Board";
 
@@ -32,21 +74,10 @@ const BoardPage = () => {
   const [prompt, setPrompt] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
-  const {
-    tasks,
-    setTasks,
-    grouped,
-    loading,
-    apiAddTask,
-    apiEditTask,
-    apiDeleteTask,
-    apiGetTasks,
-    apiReorderTasks,
-  } = useBoard();
+  const grouped = useMemo(() => groupTasks(tasks), [tasks]);
 
+  // ===== Socket (single instance) =====
   const socketRef = useRef(null);
-
-  // ===== Socket =====
   useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io(BASE_URL, {
@@ -56,8 +87,10 @@ const BoardPage = () => {
     }
     const socket = socketRef.current;
 
+    // join board room
     if (boardId) socket.emit("joinBoard", boardId);
 
+    // listeners
     const onCreated = ({ task }) => {
       if (!task) return;
       setTasks((prev) =>
@@ -78,6 +111,7 @@ const BoardPage = () => {
     socket.on("task:deleted", onDeleted);
     socket.on("task:reordered", onReordered);
 
+    // safety re-sync on (re)connect
     const onConnect = async () => {
       try {
         const fresh = await apiGetTasks(boardId);
@@ -87,7 +121,7 @@ const BoardPage = () => {
     socket.on("connect", onConnect);
 
     return () => {
-      if (boardId) socket.emit("leaveBoard", boardId);
+      socket.emit("leaveBoard", boardId);
       socket.off("task:created", onCreated);
       socket.off("task:updated", onUpdated);
       socket.off("task:deleted", onDeleted);
@@ -101,10 +135,13 @@ const BoardPage = () => {
     let alive = true;
     (async () => {
       try {
+        setLoading(true);
         const t = await apiGetTasks(boardId);
         if (alive) setTasks(t);
       } catch (e) {
         toast.error(e?.response?.data?.message || "Gagal memuat tasks");
+      } finally {
+        if (alive) setLoading(false);
       }
     })();
     return () => {
@@ -112,18 +149,21 @@ const BoardPage = () => {
     };
   }, [boardId]);
 
-  // ===== CRUD =====
+  // ===== CRUD (optimistic; socket broadcast akan menyamakan state semua klien) =====
   const createTask = async () => {
     const title = newTitle.trim();
     const description = (newDesc || "").trim();
     if (!title) return;
     try {
-      await apiAddTask({
+      const created = await apiAddTask(boardId, {
         title,
         description: description || "(no description)",
       });
+      // Optimistic add; listener `task:created` akan mengabaikan duplikat
+      setTasks((prev) => [...prev, created]);
       setNewTitle("");
       setNewDesc("");
+      toast.success("Task dibuat");
     } catch (e) {
       toast.error(e?.response?.data?.message || "Gagal membuat task");
     }
@@ -173,6 +213,7 @@ const BoardPage = () => {
 
     try {
       await apiReorderTasks(boardId, status, working);
+      // socket event `task:reordered` akan datang; tetap refetch kecil untuk jaga konsistensi
       const fresh = await apiGetTasks(boardId);
       setTasks(fresh);
     } catch (e) {
@@ -234,7 +275,23 @@ const BoardPage = () => {
     const p = prompt.trim();
     if (!p) return;
     setIsLoadingAI(true);
+    try {
+      const { tasks, descriptions } = await apiAiGenerate(boardId, prompt);
 
+      for (let i = 0; i < tasks.length; i++) {
+        const title = String(tasks[i] || "").trim();
+        if (!title) continue;
+
+        const description = String(
+          descriptions[i] || descriptions[0] || "(AI)"
+        ).trim();
+        await apiAddTask(boardId, {
+          title,
+          description: description || "(AI)",
+          // opsional: kasih default status + order kalo backendmu dukung
+          // status: "todo",
+          // order: i + 1,
+        });
       }
 
       const fresh = await apiGetTasks(boardId);
@@ -294,7 +351,10 @@ const BoardPage = () => {
                 {isLoadingAI ? <span>...</span> : "Generate"}
               </button>
               <button
-                onClick={() => nav("/")}
+                onClick={() => {
+                  localStorage.clear();
+                  nav("/");
+                }}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#121e44]/80 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-[#142354] active:scale-[.98]"
                 title="Kembali ke Boards"
               >
@@ -401,6 +461,18 @@ const BoardPage = () => {
           </div>
         </div>
       </div>
+      <ToastContainer
+        position="bottom-left"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick={false}
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   );
 };
