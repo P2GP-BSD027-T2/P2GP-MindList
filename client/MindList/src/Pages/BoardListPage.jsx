@@ -1,30 +1,43 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router";
 import { toast, ToastContainer } from "react-toastify";
 import Navbar from "../components/BoardListComponent/Navbar";
 import GuestName from "../components/BoardListComponent/GuestName";
 import CreateJoinAcc from "../components/BoardListComponent/CreateJoinAcc";
 import Toolbar from "../components/BoardListComponent/ToolBar";
 import BoardsList from "../components/BoardListComponent/BoardsList";
-import { useBoardList } from "../contexts/BoardListContext";
+import axios from "axios";
+import { BASE_URL } from "../constant/constant";
 
 const BoardListPage = () => {
-  const {
-    boards,
-    loading,
-    createBoard,
-    joinBoard,
-    handleOpenBoard,
-    displayName,
-    setDisplayName,
-    newName,
-    setNewName,
-    joinCode,
-    setJoinCode,
-    fetchBoards,
-  } = useBoardList();
+  const nav = useNavigate();
 
+  // State
+  const [boards, setBoards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState("");
+  const [newName, setNewName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("recent");
+
+  // Fetch boards from API
+  const fetchBoards = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get(`${BASE_URL}/boards`);
+      setBoards(Array.isArray(data?.boards) ? data.boards : []);
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Gagal memuat boards");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBoards();
+  }, [fetchBoards]);
 
   const refresh = () => {
     fetchBoards().then(() => toast.success("Boards refreshed"));
