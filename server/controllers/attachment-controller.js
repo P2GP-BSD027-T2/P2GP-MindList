@@ -1,4 +1,3 @@
-require("dotenv").config();
 const cloudinary = require("cloudinary").v2;
 const { Attachment } = require("../models");
 cloudinary.config({
@@ -16,7 +15,9 @@ class AttachmentController {
       const bufferToString = buffer.toString("base64");
       const dataToUpload = `data:${mimetype};base64,${bufferToString}`;
 
-      const result = await cloudinary.uploader.upload(dataToUpload);
+      const result = await cloudinary.uploader.upload(dataToUpload, {
+        folder: "MindList",
+      });
 
       let type = "document";
       if (result.resource_type === "image") type = "image";
