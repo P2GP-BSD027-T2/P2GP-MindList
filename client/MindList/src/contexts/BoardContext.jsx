@@ -122,10 +122,12 @@ export const BoardProvider = ({ boardId, children }) => {
         tasks,
         grouped,
         loading,
+        apiGetTasks,
         apiAddTask,
         apiEditTask,
         apiDeleteTask,
-        apiReorderTasks
+        apiReorderTasks,
+        setTasks
       }}
     >
       {children}

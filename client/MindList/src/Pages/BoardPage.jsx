@@ -20,6 +20,39 @@ function groupTasks(tasks) {
   return group;
 }
 
+// ===== API wrappers =====
+const apiGetTasks = async (boardId) => {
+  const { data } = await axios.get(`${BASE_URL}/boards/${boardId}/tasks`);
+  return data.tasks || [];
+};
+const apiAddTask = async (boardId, payload) => {
+  const { data } = await axios.post(
+    `${BASE_URL}/boards/${boardId}/tasks`,
+    payload
+  );
+  return data.task;
+};
+const apiEditTask = async (boardId, taskId, patch) => {
+  const { data } = await axios.patch(
+    `${BASE_URL}/boards/${boardId}/tasks/${taskId}`,
+    patch
+  );
+  return data.tasks;
+};
+const apiDeleteTask = async (boardId, taskId) => {
+  const { data } = await axios.delete(
+    `${BASE_URL}/boards/${boardId}/tasks/${taskId}`
+  );
+  return data.tasks;
+};
+const apiReorderTasks = async (boardId, status, orderedId) => {
+  const { data } = await axios.put(
+    `${BASE_URL}/boards/${boardId}/tasks/reorder`,
+    { orderedId, status }
+  );
+  return data.tasks;
+};
+
 const BoardPage = () => {
   const { id: boardId } = useParams();
   const nav = useNavigate();
@@ -229,7 +262,7 @@ const BoardPage = () => {
     moveAcrossColumns(draggableId, from, to, destination.index);
   };
 
-  const generateFromAI = () => {
+  const generateFromAI = async () => {
     const p = prompt.trim();
     if (!p) return;
     setIsLoadingAI(true);
@@ -242,7 +275,7 @@ const BoardPage = () => {
           { title: `Review hasil ${p}` },
         ];
         for (const it of ideas) {
-          await apiAddTask({ title: it.title, description: "(AI)" });
+          await apiAddTask(boardId, { title: it.title, description: "(AI)" });
         }
         const fresh = await apiGetTasks(boardId);
         setTasks(fresh);
@@ -288,7 +321,7 @@ const BoardPage = () => {
             <div className="hidden sm:flex items-center gap-2 w-[420px] max-w-full">
               <input
                 className="w-full rounded-xl border border-white/10 bg-[#0f1c40] px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/20"
-                placeholder="AI prompt (dummy)"
+                placeholder="AI prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && generateFromAI()}
@@ -301,7 +334,10 @@ const BoardPage = () => {
                 {isLoadingAI ? <span>...</span> : "Generate"}
               </button>
               <button
-                onClick={() => nav("/")}
+                onClick={() => {
+                  localStorage.clear();
+                  nav("/");
+                }}
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#121e44]/80 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-[#142354] active:scale-[.98]"
                 title="Kembali ke Boards"
               >
