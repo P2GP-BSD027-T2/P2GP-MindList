@@ -5,7 +5,7 @@ import GuestName from "../components/BoardListComponent/GuestName";
 import CreateJoinAcc from "../components/BoardListComponent/CreateJoinAcc";
 import Toolbar from "../components/BoardListComponent/ToolBar";
 import BoardsList from "../components/BoardListComponent/BoardsList";
-import { useBoard } from "../contexts/BoardContext";
+import { useBoardList } from "../contexts/BoardListContext";
 
 const BoardListPage = () => {
   const {
@@ -21,7 +21,7 @@ const BoardListPage = () => {
     joinCode,
     setJoinCode,
     fetchBoards,
-  } = useBoard();
+  } = useBoardList();
 
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("recent");
