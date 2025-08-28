@@ -11,9 +11,6 @@ const GuestName = ({ displayName, setDisplayName }) => {
             placeholder="Contoh: Budi"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            onBlur={() =>
-              localStorage.setItem("name", (displayName || "Guest").trim())
-            }
           />
         </div>
       </div>

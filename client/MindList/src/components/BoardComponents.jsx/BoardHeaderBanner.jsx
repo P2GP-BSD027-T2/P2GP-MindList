@@ -1,5 +1,4 @@
 import AvatarGroup from "./AvatarGroup";
-import Tab from "./TabBoardBanner";
 
 const BoardHeaderBanner = ({ title = "Craftboard Project" }) => {
   return (
