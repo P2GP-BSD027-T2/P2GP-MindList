@@ -18,13 +18,7 @@ module.exports = (sequelize, DataTypes) => {
       BoardId: DataTypes.INTEGER,
       TaskId: DataTypes.INTEGER,
       type: DataTypes.STRING,
-      mime: DataTypes.STRING,
       url: DataTypes.STRING,
-      providerPublicId: DataTypes.STRING,
-      size: DataTypes.INTEGER,
-      width: DataTypes.INTEGER,
-      height: DataTypes.INTEGER,
-      pages: DataTypes.INTEGER,
     },
     {
       sequelize,

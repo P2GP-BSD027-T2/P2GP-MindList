@@ -11,6 +11,13 @@ import { BASE_URL } from "../constant/constant";
 
 const BoardListPage = () => {
   const nav = useNavigate();
+  useEffect(() => {
+    const board = localStorage.getItem("board");
+    const boarId = localStorage.getItem("id");
+    if (board) {
+      nav(`/boards/${boarId}`);
+    }
+  }, []);
 
   // State
   const [boards, setBoards] = useState([]);

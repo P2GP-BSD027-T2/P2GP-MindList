@@ -1,5 +1,5 @@
 // controllers/task-controller.js
-const { Task } = require("../models");
+const { Task, Attachment } = require("../models");
 
 class TaskController {
   static async getAllTasks(req, res, next) {
@@ -9,6 +9,7 @@ class TaskController {
       const tasks = await Task.findAll({
         where: { BoardId },
         order: [["order", "ASC"]],
+        include: { model: Attachment },
       });
 
       res.status(200).json({ message: "Tasks retrieved successfully", tasks });

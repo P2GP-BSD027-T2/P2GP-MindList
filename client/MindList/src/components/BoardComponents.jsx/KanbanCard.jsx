@@ -5,10 +5,11 @@ export default function KanbanCard({
   onDelete,
   onChangeStatus,
   onEditTitle,
+  attachments,
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title || "");
-
+  console.log(attachments, "ini attachments");
   const initials = useMemo(() => {
     const words = String(task.title || "?")
       .trim()
@@ -53,9 +54,9 @@ export default function KanbanCard({
           {task.title}
         </button>
       )}
-      <p className="text-sm text-black mb-2 p-2 bg-gray-400 rounded-md">
-        <h1 className="line-clamp-3">{task.description}</h1>
-      </p>
+      <h2 className="text-sm text-black mb-2 p-2 bg-gray-400 rounded-md">
+        <p className="line-clamp-3">{task.description}</p>
+      </h2>
 
       {/* Controls */}
       <div className="flex items-center justify-between gap-2">
@@ -104,15 +105,6 @@ export default function KanbanCard({
           </button>
         </div>
       </div>
-      <label className="cursor-pointer border-stone-800 border-2 text-white text-sm self-center font-semibold rounded-lg h-8 w-1/4 px-[0.625rem] flex items-center justify-center hover:bg-stone-700 mt-4">
-        <i className="fa-solid fa-file"></i>
-        <input
-          type="file"
-          accept="image/*,application/pdf,application/msword"
-          onChange={(event) => handleUploadfile(task.id, event)}
-          className="hidden"
-        />
-      </label>
     </div>
   );
 }

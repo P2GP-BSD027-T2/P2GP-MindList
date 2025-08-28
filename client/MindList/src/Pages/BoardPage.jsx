@@ -76,9 +76,15 @@ const BoardPage = () => {
   const [newDesc, setNewDesc] = useState("");
   const [prompt, setPrompt] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [attachments, setAttachments] = useState([]);
 
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
-
+  useEffect(() => {
+    const board = localStorage.getItem("board");
+    if (!board) {
+      nav(`/`);
+    }
+  }, []);
   // ===== Socket (single instance) =====
   const socketRef = useRef(null);
   useEffect(() => {
@@ -140,7 +146,9 @@ const BoardPage = () => {
       try {
         setLoading(true);
         const t = await apiGetTasks(boardId);
+        console.log(t.Attachments, "ini attachments");
         if (alive) setTasks(t);
+        setAttachments(t.Attachments);
       } catch (e) {
         toast.error(e?.response?.data?.message || "Gagal memuat tasks");
       } finally {
@@ -458,6 +466,7 @@ const BoardPage = () => {
                                     onEditTitle={(id, title) =>
                                       patchTask(id, { title })
                                     }
+                                    attachments={attachments}
                                   />
                                 </div>
                               )}
