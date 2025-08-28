@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, Link } from "react-router";
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { toast, ToastContainer } from "react-toastify";
@@ -8,6 +8,7 @@ import BoardHeaderBanner from "../components/BoardComponents.jsx/BoardHeaderBann
 import Column from "../components/BoardComponents.jsx/Column.jsx";
 import KanbanCard from "../components/BoardComponents.jsx/KanbanCard.jsx";
 import { BASE_URL } from "../constant/constant";
+import PhotoProfile from "../assets/PhotoProfile.jsx";
 
 const STATUSES = ["todo", "doing", "done"];
 
@@ -63,6 +64,8 @@ const apiAiGenerate = async (boardId, title) => {
 const BoardPage = () => {
   const { id: boardId } = useParams();
   const nav = useNavigate();
+
+  const username = localStorage.getItem("name");
 
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -327,13 +330,23 @@ const BoardPage = () => {
       {/* NAVBAR */}
       <nav className="sticky top-0 z-10 border-b border-white/10 bg-[#0c1836]/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="flex h-18 items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="truncate text-sm sm:text-base font-semibold text-slate-100">
-                {boardName}
-              </h1>
+          <div className="flex h-20 items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="size-9 shrink-0 rounded-xl bg-indigo-800/60 grid place-items-center font-semibold text-indigo-200 ring-1 ring-inset ring-white/10">
+                <img
+                  src={
+                    PhotoProfile[
+                      Math.floor(Math.random() * PhotoProfile.length)
+                    ]
+                  }
+                  alt="PP"
+                  className="rounded-lg"
+                />
+              </div>
+              <div className="text-sm min-w-0">
+                <div className="font-semibold truncate">{username}</div>
+              </div>
             </div>
-
             {/* AI Prompt */}
             <div className="hidden sm:flex items-center gap-2 w-[420px] max-w-full">
               <input

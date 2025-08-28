@@ -26,17 +26,8 @@ export default function KanbanCard({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-3 shadow-sm hover:shadow transition-colors">
-      {/* Chips / Labels (demo static) */}
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-indigo-900/40 text-indigo-200 ring-1 ring-inset ring-indigo-300/20">
-          Dashboard
-        </span>
-        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-slate-900/30 text-slate-200 ring-1 ring-inset ring-white/10">
-          Medium
-        </span>
-      </div>
-
       {/* Title (editable) */}
+      <div className="w-full mt-1.5"></div>
       {editing ? (
         <input
           autoFocus
@@ -55,16 +46,16 @@ export default function KanbanCard({
       ) : (
         <button
           type="button"
-          className="w-full text-left text-[15px] font-medium leading-snug mb-2 text-slate-100 hover:text-white"
+          className="w-full text-center text-lg font-semibold leading-snug mb-2 text-slate-100 hover:text-white"
           title="Klik untuk edit judul"
           onDoubleClick={() => setEditing(true)}
-          // onKeyDown={(event) =>
-          //   event.key === "Enter" ? setEditing(true) : null
-          // }
         >
           {task.title}
         </button>
       )}
+      <p className="text-sm text-black mb-2 p-2 bg-gray-400 rounded-md">
+        <h1 className="line-clamp-3">{task.description}</h1>
+      </p>
 
       {/* Controls */}
       <div className="flex items-center justify-between gap-2">
@@ -113,6 +104,15 @@ export default function KanbanCard({
           </button>
         </div>
       </div>
+      <label className="cursor-pointer border-stone-800 border-2 text-white text-sm self-center font-semibold rounded-lg h-8 w-1/4 px-[0.625rem] flex items-center justify-center hover:bg-stone-700 mt-4">
+        <i className="fa-solid fa-file"></i>
+        <input
+          type="file"
+          accept="image/*,application/pdf,application/msword"
+          onChange={(event) => handleUploadfile(task.id, event)}
+          className="hidden"
+        />
+      </label>
     </div>
   );
 }
