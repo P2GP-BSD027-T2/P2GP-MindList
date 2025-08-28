@@ -1,6 +1,9 @@
 import { Link } from "react-router";
+import { useUser } from "../../contexts/UserContext";
 
-const Navbar = ({ refresh, loading, displayName }) => {
+const Navbar = ({ refresh, loading }) => {
+  const { displayName } = useUser();
+
   return (
     <nav className="sticky top-0 z-10 border-b border-white/10 bg-blue-950/80 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4">

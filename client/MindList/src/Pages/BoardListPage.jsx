@@ -115,21 +115,19 @@ const BoardListPage = () => {
 
   const handleOpenBoard = async (b) => {
     try {
-      const name = localStorage.getItem("name") || "Guest";
-      if (!b.isMember) {
-        const { data } = await axios.post(`${BASE_URL}/boards/join`, {
-          name,
-          code: b.code,
-        });
+      const { data } = await axios.post(`${BASE_URL}/boards/join`, {
+        name: displayName,
+        code: b.code,
+      });
 
-        console.log(b.boardName);
+      console.log(b.boardName);
 
-        localStorage.setItem("id", data.data?.id);
-        localStorage.setItem("name", data.data?.name);
-        localStorage.setItem("board", b.boardName);
+      localStorage.setItem("id", data.data?.id);
+      localStorage.setItem("name", data.data?.name);
+      localStorage.setItem("board", b.boardName);
 
-        toast.success("Bergabung ke board berhasil");
-      }
+      toast.success("Bergabung ke board berhasil");
+
       nav(`/boards/${b.id}`);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Gagal join board");

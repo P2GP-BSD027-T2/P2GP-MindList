@@ -1,4 +1,4 @@
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 import PhotoProfile from "../assets/PhotoProfile";
 
 const itemBase =
@@ -30,19 +30,19 @@ export default function Sidebar() {
     <aside className="h-full flex flex-col bg-[#0c1836]/80 text-slate-100 border-r border-white/10 backdrop-blur">
       {/* Profile */}
       <div className="p-4 border-b border-white/10">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="size-9 shrink-0 rounded-xl bg-indigo-800/60 grid place-items-center font-semibold text-indigo-200 ring-1 ring-inset ring-white/10">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-500/20 ring-1 ring-inset ring-white/10">
             <img
-              src={
-                PhotoProfile[Math.floor(Math.random() * PhotoProfile.length)]
-              }
-              alt="PP"
-              className="rounded-lg"
+              src="https://res.cloudinary.com/drzqzizv1/image/upload/v1756288958/Icon_MindList_nthlji.png"
+              alt="Icon"
             />
           </div>
-          <div className="text-sm min-w-0">
-            <div className="font-semibold truncate">Manageko</div>
-          </div>
+          <Link
+            to="/"
+            className="text-2xl font-semibold tracking-wide text-slate-100"
+          >
+            MindList
+          </Link>
         </div>
       </div>
 
@@ -52,23 +52,12 @@ export default function Sidebar() {
           Main Menu
         </div>
         <Item to="/" label="Boards" end />
-        <Item to="/search" label="Search" />
-        <Item to="/calendar" label="Calendar" />
-        <Item to="/settings" label="Settings" />
+        <Item label="Search" />
+        <Item label="Calendar" />
+        <Item label="Settings" />
       </nav>
 
       {/* CTA */}
-      <div className="mt-auto p-4">
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
-          <div className="text-sm font-medium mb-1">Add extra security</div>
-          <p className="text-xs text-slate-300/90 mb-3">
-            Enable 2-step verification for your account.
-          </p>
-          <button className="w-full inline-flex items-center justify-center rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-500 active:scale-[.98]">
-            Enable 2-step
-          </button>
-        </div>
-      </div>
     </aside>
   );
 }
